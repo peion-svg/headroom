@@ -5,7 +5,7 @@
 - Project: Lightweight Source Parser
 - Repository: `peion-svg/headroom`
 - Current phase: WC-PARSER-001 implementation
-- Implementation status: IN_PROGRESS
+- Implementation status: IMPLEMENTED_UNVERIFIED
 - Active WorkContract: `WC-PARSER-001`
 
 ## Canonical Project Documents
@@ -18,8 +18,8 @@
 
 | Stage | Slice | Status |
 | --- | --- | --- |
-| 1 | Canonical Source + Stable Anchor Foundation | IN_PROGRESS |
-| 2 | DOCX Deterministic Path | IN_PROGRESS |
+| 1 | Canonical Source + Stable Anchor Foundation | IMPLEMENTED_UNVERIFIED |
+| 2 | DOCX Deterministic Path | IMPLEMENTED_UNVERIFIED |
 | 3 | Digital PDF Text/Position Path | NOT_STARTED |
 | 4 | Structure Integrity Validator | NOT_STARTED |
 | 5 | Recovery Router | NOT_STARTED |
@@ -55,8 +55,13 @@ DOCX
 ## Implementation Evidence
 
 - Initial implementation commit: `91dcf5f25d2b6e821f4a4dd3f904159728db7b55`
-- Rust core, DOCX fixture, acceptance tests, and CI workflow are present on `main`.
-- CI result is not yet verified; PASS is not declared.
+- Follow-up fixes: `eb857572352d4920ed3252e2aa540d1abcd416d4`, `6bb77bd0bfefceca3fd3aad4c3ace8afcb9f5152`, `e71f96835db8a30009e8b2faeff2d2117b9d22af`, `1d8d030f56fb9ce02227e99eb1a03d9af694995b`
+- Rust core, actual DOCX fixture, acceptance tests, and CI workflow are present on `main`.
+- Fixture contains heading, paragraph, direct-numbering list, merged table header, and caption.
+- Exact `rdocx 0.17.0` table/paragraph APIs used by the implementation were checked against the tagged source.
+- GitHub produced no Actions run for either push or a verification PR in the current fork repository.
+- `cargo fmt --check` and `cargo test` have therefore not been executed.
+- PASS is not declared.
 
 ## Not Yet Verified
 
@@ -67,8 +72,14 @@ DOCX
 - source resolve roundtrip
 - fixture-based acceptance tests
 
+## Verification Blocker
+
+The required Rust gates need an executable Rust environment. The current connected environment has no Rust toolchain, and this fork repository did not create a GitHub Actions run for push or pull-request events.
+
+This is a verification blocker, not evidence of implementation failure.
+
 ## Next Action
 
-Run and inspect the required `cargo fmt --check` and `cargo test` gates for `WC-PARSER-001`; repair only evidence-backed local failures.
+Run `cargo fmt --check` and `cargo test --all-targets` in an enabled Rust/CI environment. Repair only evidence-backed local failures. Do not start Stage 3 before `WC-PARSER-001` receives an evidence-backed PASS or HOLD.
 
 Do not start Stage 3 or later work before `WC-PARSER-001` reaches PASS or HOLD.
