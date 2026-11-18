@@ -59,9 +59,10 @@ DOCX
 - Rust core, actual DOCX fixture, acceptance tests, and CI workflow are present on `main`.
 - Fixture contains heading, paragraph, direct-numbering list, repeated Unicode paragraphs, an empty paragraph, merged table header, gridBefore row, and caption.
 - Exact `rdocx 0.17.0` table/paragraph APIs used by the implementation were checked against the tagged source.
-- Static review additionally removed synthetic Table/Row text, removed inferred Heading containment, bound source revision identity to the extractor profile, fixed Stable Anchor offsets to UTF-8 bytes, preserved empty paragraphs structurally, and separated physical cell index from logical table column.
+- Static review additionally removed synthetic Table/Row text, removed inferred Heading containment, bound source revision identity to the extractor profile, fixed Stable Anchor offsets to UTF-8 bytes, preserved empty paragraphs structurally, separated physical cell index from logical table column, and added explicit refusal for unsupported material paragraph structures.
 - Previous fixture blob was confirmed byte-for-byte against the local 2,212-byte DOCX fixture.
 - Stage 1/2 safeguard fixture was expanded to 2,283 bytes for repeated Unicode quote, empty paragraph, and logical-column coverage.
+- A separate valid DOCX unsupported fixture was added to verify explicit structural refusal instead of silent flattening.
 - GitHub produced no Actions run for either push or a verification PR in the current fork repository.
 - `cargo fmt --check` and `cargo test` have therefore not been executed.
 - PASS is not declared.

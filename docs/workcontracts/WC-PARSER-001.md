@@ -158,6 +158,7 @@ source_location
 - empty paragraph 구조 보존 + text anchor 미생성
 - gridBefore/gridSpan을 고려한 physical cell index / logical column 분리
 - Table/Row synthetic text가 direct Anchor로 승격되지 않음
+- valid DOCX의 unsupported structural content가 silent flattening 없이 `StructureUnsupported`로 분리됨
 - `cargo fmt --check`
 - `cargo test`
 

@@ -2,7 +2,10 @@ use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
 
-use rdocx::{BodyItemRef, CellItemRef, Document, ParagraphRef, TableRef, VMerge};
+use rdocx::{
+    BodyItemRef, CellItemRef, Document, HyperlinkItemRef, ParagraphItemRef, ParagraphRef, TableRef,
+    VMerge,
+};
 use sha2::{Digest, Sha256};
 
 const PARSER_SCHEMA_VERSION: &str = "source-parser-docx-v0.1";
@@ -204,6 +207,7 @@ pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, ParserError> {
     for (body_index, item) in document.body_items().enumerate() {
         match item {
             BodyItemRef::Paragraph(paragraph) => {
+                validate_paragraph_items(&paragraph)?;
                 let text = paragraph.text();
                 let node_type = classify_paragraph(&document, &paragraph)?;
                 let parent_id = Some(root_id.clone());
@@ -438,6 +442,70 @@ fn append_table(
     Ok(())
 }
 
+
+fn validate_paragraph_items(paragraph: &ParagraphRef<'_>) -> Result<(), ParserError> {
+    for item in paragraph.items() {
+        match item {
+            ParagraphItemRef::Run(_) => {}
+            ParagraphItemRef::Hyperlink(link) => {
+                for child in link.items() {
+                    match child {
+                        HyperlinkItemRef::Run(_) => {}
+                        HyperlinkItemRef::Revision(_) => {
+                            return Err(ParserError::StructureUnsupported(
+                                "tracked revision inside hyperlink is not represented by this slice"
+                                    .to_owned(),
+                            ));
+                        }
+                        HyperlinkItemRef::UnsupportedXml(_) => {
+                            return Err(ParserError::StructureUnsupported(
+                                "unsupported XML inside hyperlink is not represented by this slice"
+                                    .to_owned(),
+                            ));
+                        }
+                        _ => {
+                            return Err(ParserError::StructureUnsupported(
+                                "unhandled hyperlink item is not represented by this slice"
+                                    .to_owned(),
+                            ));
+                        }
+                    }
+                }
+            }
+            ParagraphItemRef::CommentRangeStart { .. }
+            | ParagraphItemRef::CommentRangeEnd { .. }
+            | ParagraphItemRef::BookmarkStart { .. }
+            | ParagraphItemRef::BookmarkEnd { .. } => {}
+            ParagraphItemRef::Equation(_) => {
+                return Err(ParserError::StructureUnsupported(
+                    "equation content is not represented by WC-PARSER-001".to_owned(),
+                ));
+            }
+            ParagraphItemRef::ContentControl(_) => {
+                return Err(ParserError::StructureUnsupported(
+                    "paragraph content control is not represented by WC-PARSER-001".to_owned(),
+                ));
+            }
+            ParagraphItemRef::Revision(_) => {
+                return Err(ParserError::StructureUnsupported(
+                    "tracked revision is not represented by WC-PARSER-001".to_owned(),
+                ));
+            }
+            ParagraphItemRef::UnsupportedXml(_) => {
+                return Err(ParserError::StructureUnsupported(
+                    "unsupported paragraph XML is not represented by WC-PARSER-001".to_owned(),
+                ));
+            }
+            _ => {
+                return Err(ParserError::StructureUnsupported(
+                    "unhandled paragraph item is not represented by WC-PARSER-001".to_owned(),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 fn validate_cell_items(
     body_index: usize,
     row_index: usize,
@@ -446,7 +514,9 @@ fn validate_cell_items(
 ) -> Result<(), ParserError> {
     for item in cell.items() {
         match item {
-            CellItemRef::Paragraph(_) => {}
+            CellItemRef::Paragraph(paragraph) => {
+                validate_paragraph_items(&paragraph)?;
+            }
             CellItemRef::Table(_) => {
                 return Err(ParserError::StructureUnsupported(format!(
                     "nested table at body[{body_index}] row {row_index} cell {column_index}"

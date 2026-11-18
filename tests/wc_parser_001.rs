@@ -4,6 +4,7 @@ use lightweight_source_parser::{
 use sha2::{Digest, Sha256};
 
 const FIXTURE: &[u8] = include_bytes!("fixtures/wc_parser_001.docx");
+const UNSUPPORTED_FIXTURE: &[u8] = include_bytes!("fixtures/wc_parser_001_unsupported.docx");
 
 #[test]
 fn wc_parser_001_preserves_structure_identity_and_roundtrip() {
@@ -212,6 +213,11 @@ fn wc_parser_001_separates_unsupported_and_malformed_input() {
     assert!(matches!(
         parse_docx(b"PK\x03\x04broken"),
         Err(ParserError::ExtractionFailed(_))
+    ));
+
+    assert!(matches!(
+        parse_docx(UNSUPPORTED_FIXTURE),
+        Err(ParserError::StructureUnsupported(_))
     ));
 }
 
