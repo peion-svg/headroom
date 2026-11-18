@@ -819,6 +819,10 @@ validated source object
 - 동일 source가 재실행·재조회에서 다른 객체로 오인되지 않도록 identity 생성 규칙을 deterministic하게 유지한다.
 - anchor가 생성되었다는 사실만으로 충분하지 않다. 실제 원문으로 roundtrip resolve되어야 한다.
 - source 위치를 잃은 node를 정상 material source처럼 승격하지 않는다.
+- Table/Row처럼 구조 표현을 위해 조합한 synthetic text를 원문 quote/content와 동일시하지 않는다.
+- Stable Anchor의 offset 단위는 구현에서 하나로 고정하고 byte / Unicode scalar / UTF-16을 혼용하지 않는다.
+- 동일 문구가 여러 위치에 존재할 수 있으므로 quote/hash만으로 source 위치를 재결정하지 않는다. source_node_id와 source_location 결속을 우선한다.
+- document revision은 최소 원본 hash + parser schema + extractor profile에 결속하고, material representation이 달라지는 extractor 변경을 동일 revision으로 숨기지 않는다.
 
 ## Stage 2 — DOCX Deterministic Path
 
@@ -840,6 +844,14 @@ DOCX 구조를 deterministic하게 추출하고 Stage 1 결과에 연결한다.
 - malformed/unsupported 입력을 빈 문서로 반환하지 않는다.
 - 특정 fixture만 통과시키기 위한 hard-coded 구조를 만들지 않는다.
 - DOCX 처리 문제 때문에 PDF/recovery 책임을 끌어오지 않는다.
+- heading 뒤에 있다는 이유만으로 후속 paragraph/table을 heading의 자식으로 만드는 등 원문에 없는 containment를 추론하지 않는다.
+- DOCX table의 physical cell vector index와 logical grid column을 동일시하지 않는다. gridSpan, gridBefore/gridAfter, vertical merge가 있는 경우 logical coordinate를 별도로 검증한다.
+- list 여부와 level이 direct paragraph property만이 아니라 numbering/style inheritance에서 결정될 수 있음을 고려한다.
+- tracked changes, bookmarks, fields, hyperlinks, content controls 등 common-but-unmodeled XML을 무조건 정상 구조 또는 무조건 실패로 뭉개지 말고 보존 가능 / 구조 영향 / unsupported를 구분한다.
+- text가 비어 있다는 이유만으로 paragraph를 즉시 버리지 않는다. section break, spacing, 경계 등 구조 정보가 남아 있는지 확인한다.
+- Caption style의 존재와 caption-target 관계 확정은 별개다. target 관계가 명시되지 않았다면 임의 결속하지 않는다.
+- footnote/endnote/comment처럼 body 밖 별도 story의 위치 namespace를 본문과 혼합하지 않는다.
+- encrypted, damaged package, malformed XML, unsupported structure를 하나의 generic extraction failure로 뭉개지 않는다.
 
 ## Stage 3 — Digital PDF Text/Position Path
 
@@ -861,6 +873,9 @@ PDF 의미 구조를 과잉 추론하지 않고 text/position 기반 Source를 �
 - extractor가 반환한 순서를 곧바로 논리 문서 순서로 확정하지 않는다.
 - 추출 text가 적거나 비어 있다고 실제 문서 내용이 없다고 판정하지 않는다.
 - 특정 PDF library의 결과 차이는 adapter 문제로 격리하고 Canonical 계약을 변경하는 이유로 사용하지 않는다.
+- 동일 text가 반복되는 페이지/영역에서 text match만으로 bounding region을 재결정하지 않는다.
+- page rotation, crop/media box, coordinate origin 차이 등 좌표계 변환으로 bbox가 드리프트하지 않는지 확인한다.
+- extractor가 일부 glyph/span을 조용히 누락하거나 중복해도 API 성공을 extraction completeness로 간주하지 않는다.
 
 ## Stage 4 — Structure Integrity Validator
 
@@ -881,6 +896,10 @@ extracted structure
 - 각 판정에는 reason code, evidence, affected region을 남긴다.
 - validator rule이 특정 문서군에 과적합되어 정상 문서를 대량 recovery로 보내지 않는지 확인한다.
 - false negative와 false positive를 모두 fixture로 관리한다.
+- 외부 library가 오류 없이 구조 일부를 조용히 버리는 silent-loss를 별도 이상 유형으로 검출할 수 있어야 한다.
+- 한 region의 PARTIAL/AMBIGUOUS가 문서 전체를 무조건 FAILED로 만들거나 반대로 전체 VALID로 덮이지 않도록 failure scope를 보존한다.
+- table logical coordinates와 physical cell indices가 어긋나는 경우를 integrity evidence로 검증한다.
+- common-but-unmodeled XML이 존재한다는 사실 자체와 실제 material structure loss를 구분한다.
 
 ## Stage 5 — Recovery Router
 
@@ -941,6 +960,10 @@ UNVERIFIED_RECOVERY
 - 부분적으로만 확인 가능한 결과는 `PARTIAL`로 남기고 정상 Source로 확장 해석하지 않는다.
 - rebinding 실패를 content absence로 바꾸지 않는다.
 - recovery 성공률을 높이기 위해 검증 기준을 완화하지 않는다.
+- 내용이 맞아 보여도 recovered structure의 좌표/bounding region이 원본과 어긋나면 VERIFIED로 승격하지 않는다.
+- content match와 position match를 독립적으로 검증한다.
+- 동일 문구 중복으로 잘못된 region에 rebinding되는 경우를 거부한다.
+- 부분적으로 검증된 region의 성공을 인접 실패 region까지 확장하지 않는다.
 
 ## Stage 8 — Full Acceptance Closure
 
@@ -963,6 +986,10 @@ DOCX / Digital PDF / failure fixture / recovery fixture
 - 장시간 또는 반복 실행 시 메모리 증가가 지속되는지 측정하되, 원인 미확정 상태에서 leak로 단정하지 않는다.
 - 수용조건 미충족을 문서 해석이나 수동 승인으로 덮지 않는다.
 - Stage 8 PASS는 현재 MVP 구현 완료만 의미하며 제품 의미판단 또는 후속 SCI 검수의 정확성을 보증하지 않는다.
+- 같은 bytes + 같은 parser schema + 같은 extractor profile에서 node/anchor identity뿐 아니라 material Canonical output이 deterministic한지 회귀 검증한다.
+- extractor/library 버전 변경 전후의 snapshot diff에서 material drift와 비material drift를 구분한다.
+- 압축폭탄, 과대 XML/table/image, 과도한 중첩 등 resource-exhaustion 입력에 명시적 한도와 failure가 있는지 확인한다.
+- 필수 build/test gate를 실제로 실행할 환경이 없으면 정적 검수로 대체해 PASS하지 않고 HOLD한다.
 
 ## WorkContract mapping
 
@@ -990,6 +1017,10 @@ DOCX fixture
 - [ ] anchor → source roundtrip resolve가 가능한가
 - [ ] 위치를 잃은 material node가 정상 승격되지 않는가
 - [ ] 미래 포맷용 speculative abstraction을 추가하지 않았는가
+- [ ] direct source text와 synthetic structural text가 구분되는가
+- [ ] Stable Anchor offset 단위가 하나로 고정되어 있는가
+- [ ] 동일 quote가 반복돼도 source_node_id + source_location으로 위치가 고정되는가
+- [ ] document revision이 원본 hash + parser schema + extractor profile에 결속되는가
 
 ### Stage 2 — DOCX Deterministic Path
 - [ ] heading/paragraph/list/table 관계가 보존되는가
@@ -999,6 +1030,14 @@ DOCX fixture
 - [ ] malformed/unsupported DOCX가 명시적 실패를 반환하는가
 - [ ] 빈 추출 결과를 content absence로 처리하지 않는가
 - [ ] PDF/recovery 책임을 선행 구현하지 않았는가
+- [ ] 원문에 없는 heading containment 등 계층을 추론하지 않는가
+- [ ] physical cell index와 logical table column을 분리해 검증하는가
+- [ ] list inheritance를 direct property만으로 오판하지 않는가
+- [ ] common-but-unmodeled XML을 보존 가능/구조 영향/unsupported로 구분하는가
+- [ ] empty paragraph의 구조 정보를 확인하지 않고 삭제하지 않는가
+- [ ] caption 존재와 caption-target 관계를 별도로 취급하는가
+- [ ] footnote/endnote/comment story namespace가 body와 분리되는가
+- [ ] encrypted/damaged/malformed/unsupported failure가 구분되는가
 
 ### Stage 3 — Digital PDF Text/Position Path
 - [ ] page/text span/bounding position이 보존되는가
@@ -1006,6 +1045,9 @@ DOCX fixture
 - [ ] multi-column/header/footer/table text 평탄화 위험을 기록하는가
 - [ ] text 부족 또는 공백을 content absence로 처리하지 않는가
 - [ ] PDF library 교체가 Canonical 계약 변경을 요구하지 않는가
+- [ ] 반복 text에서 text match만으로 bbox를 재결정하지 않는가
+- [ ] PDF 좌표계 변환 후 bounding box drift를 검증하는가
+- [ ] API 성공을 extraction completeness로 간주하지 않는가
 
 ### Stage 4 — Structure Integrity Validator
 - [ ] VALID/AMBIGUOUS/PARTIAL/FAILED를 구분하는가
@@ -1015,6 +1057,10 @@ DOCX fixture
 - [ ] false negative fixture가 있는가
 - [ ] false positive fixture가 있는가
 - [ ] 틀린 구조가 조용히 VALID로 통과하지 않는가
+- [ ] silent structure loss를 탐지하는 fixture가 있는가
+- [ ] region-level PARTIAL/AMBIGUOUS scope가 문서 전체 판정에 왜곡되지 않는가
+- [ ] logical table coordinate 불일치를 검출하는가
+- [ ] unmodeled XML 존재와 material structure loss를 구분하는가
 
 ### Stage 5 — Recovery Router
 - [ ] VALID 영역에는 recovery를 호출하지 않는가
@@ -1040,6 +1086,9 @@ DOCX fixture
 - [ ] PARTIAL을 완전한 Canonical Source로 확장하지 않는가
 - [ ] rebinding 실패를 content absence로 바꾸지 않는가
 - [ ] 검증 기준을 recovery 성공률 때문에 완화하지 않는가
+- [ ] recovered content와 recovered position을 독립적으로 검증하는가
+- [ ] 동일 문구 중복으로 잘못된 region에 rebinding되지 않는가
+- [ ] PARTIAL 성공을 인접 실패 영역으로 확장하지 않는가
 
 ### Stage 8 — Full Acceptance Closure
 - [ ] DOCX happy-path fixture가 통과하는가
@@ -1051,6 +1100,10 @@ DOCX fixture
 - [ ] parser/library 버전 변경 시 material output drift를 확인하는가
 - [ ] 반복 실행 메모리 변화를 측정하는가
 - [ ] 모든 acceptance criteria가 관찰 가능한 증거로 판정되는가
+- [ ] same bytes + same parser schema + same extractor profile에서 material output이 deterministic한가
+- [ ] library/extractor version drift를 snapshot diff로 확인하는가
+- [ ] 과대/비정상 입력에 resource limit과 명시적 failure가 있는가
+- [ ] 필수 build/test gate를 실제 실행하지 못한 경우 PASS 대신 HOLD하는가
 
 ### 공통 완료 체크
 - [ ] 현재 Stage의 Required Result가 실제 fixture에서 재현되는가
@@ -1059,6 +1112,7 @@ DOCX fixture
 - [ ] Canonical Source / Stable Anchor / Source Binding 불변이 유지되는가
 - [ ] 테스트하지 않은 항목을 PASS로 기록하지 않는가
 - [ ] 다음 Stage로 넘어가기 전에 현재 Stage 상태를 STATUS.md에 반영하는가
+- [ ] static review/API 대조를 실제 build/test 실행의 대체 증거로 사용하지 않는가
 
 # 34. 현재 첫 최소 세로절단
 
