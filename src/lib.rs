@@ -205,7 +205,7 @@ pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, ParserError> {
         match item {
             BodyItemRef::Paragraph(paragraph) => {
                 let text = paragraph.text();
-                let node_type = classify_paragraph(&document, &paragraph);
+                let node_type = classify_paragraph(&document, &paragraph)?;
                 let parent_id = Some(root_id.clone());
                 let path = match node_type {
                     NodeType::Heading { .. } => format!("body/{body_index}/heading"),
@@ -272,34 +272,40 @@ pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, ParserError> {
     })
 }
 
-fn classify_paragraph(document: &Document, paragraph: &ParagraphRef<'_>) -> NodeType {
+fn classify_paragraph(
+    document: &Document,
+    paragraph: &ParagraphRef<'_>,
+) -> Result<NodeType, ParserError> {
     if let Some(level) = heading_level(paragraph.style_id()) {
-        return NodeType::Heading { level };
+        return Ok(NodeType::Heading { level });
     }
 
     if paragraph
         .style_id()
         .is_some_and(|style| style.eq_ignore_ascii_case("Caption"))
     {
-        return NodeType::Caption;
+        return Ok(NodeType::Caption);
     }
 
     if let Some((num_id, level)) = paragraph.numbering() {
+        if num_id == 0 {
+            return Ok(NodeType::Paragraph);
+        }
         let ordered = document.numbering_is_bullet(num_id).map(|is_bullet| !is_bullet);
-        return NodeType::ListItem { level, ordered };
+        return Ok(NodeType::ListItem { level, ordered });
     }
 
     if paragraph
         .style_id()
         .is_some_and(|style| style.to_ascii_lowercase().starts_with("list"))
     {
-        return NodeType::ListItem {
-            level: 0,
-            ordered: None,
-        };
+        return Err(ParserError::StructureUnsupported(
+            "list-like paragraph style has no direct numbering; effective numbering inheritance is unresolved"
+                .to_owned(),
+        ));
     }
 
-    NodeType::Paragraph
+    Ok(NodeType::Paragraph)
 }
 
 fn heading_level(style_id: Option<&str>) -> Option<u8> {
