@@ -6,6 +6,7 @@ use rdocx::{BodyItemRef, CellItemRef, Document, ParagraphRef, TableRef, VMerge};
 use sha2::{Digest, Sha256};
 
 const PARSER_SCHEMA_VERSION: &str = "source-parser-docx-v0.1";
+const EXTRACTOR_PROFILE: &str = "rdocx-0.17.0";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeType {
@@ -171,8 +172,12 @@ pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, ParserError> {
 
     let original_hash = sha256_hex(bytes);
     let document_id = format!("doc:{original_hash}");
-    let document_revision_id =
-        format!("rev:{}", sha256_hex(format!("{original_hash}:{PARSER_SCHEMA_VERSION}").as_bytes()));
+    let document_revision_id = format!(
+        "rev:{}",
+        sha256_hex(
+            format!("{original_hash}:{PARSER_SCHEMA_VERSION}:{EXTRACTOR_PROFILE}").as_bytes()
+        )
+    );
 
     let mut nodes = Vec::new();
     let root_id = push_node(
