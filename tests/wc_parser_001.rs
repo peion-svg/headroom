@@ -1,3 +1,4 @@
+// Verification-only branch marker; no production behavior change.
 use lightweight_source_parser::{
     NodeType, ParserError, VerticalMerge, parse_docx,
 };
