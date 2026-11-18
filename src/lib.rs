@@ -36,7 +36,7 @@ pub enum VerticalMerge {
     Continue,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SourceLocation {
     Document,
     BodyParagraph {
@@ -256,7 +256,7 @@ pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, ParserError> {
 
     let anchors = nodes
         .iter()
-        .filter(|node| !node.content.is_empty())
+        .filter(|node| is_directly_anchorable(node) && !node.content.is_empty())
         .map(|node| build_anchor(&document_revision_id, node))
         .collect();
 
@@ -461,6 +461,18 @@ fn push_node(
     });
 
     source_node_id
+}
+
+fn is_directly_anchorable(node: &CanonicalNode) -> bool {
+    matches!(
+        node.node_type,
+        NodeType::Heading { .. }
+            | NodeType::Paragraph
+            | NodeType::ListItem { .. }
+            | NodeType::Cell
+            | NodeType::Caption
+            | NodeType::Footnote
+    )
 }
 
 fn build_anchor(document_revision_id: &str, node: &CanonicalNode) -> StableAnchor {
