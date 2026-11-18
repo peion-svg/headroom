@@ -187,8 +187,6 @@ pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, ParserError> {
         None,
     );
 
-    let mut current_heading = None::<String>;
-
     for (body_index, item) in document.body_items().enumerate() {
         match item {
             BodyItemRef::Paragraph(paragraph) => {
@@ -198,10 +196,7 @@ pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, ParserError> {
                 }
 
                 let node_type = classify_paragraph(&document, &paragraph);
-                let parent_id = match node_type {
-                    NodeType::Heading { .. } => Some(root_id.clone()),
-                    _ => current_heading.clone().or_else(|| Some(root_id.clone())),
-                };
+                let parent_id = Some(root_id.clone());
                 let path = match node_type {
                     NodeType::Heading { .. } => format!("body/{body_index}/heading"),
                     NodeType::ListItem { .. } => format!("body/{body_index}/list"),
@@ -209,7 +204,7 @@ pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, ParserError> {
                     _ => format!("body/{body_index}/paragraph"),
                 };
 
-                let node_id = push_node(
+                push_node(
                     &mut nodes,
                     &document_revision_id,
                     &path,
@@ -221,9 +216,6 @@ pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, ParserError> {
                     None,
                 );
 
-                if matches!(node_type, NodeType::Heading { .. }) {
-                    current_heading = Some(node_id);
-                }
             }
             BodyItemRef::Table(table) => {
                 append_table(
@@ -231,7 +223,7 @@ pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, ParserError> {
                     &document_revision_id,
                     body_index,
                     &table,
-                    current_heading.clone().or_else(|| Some(root_id.clone())),
+                    Some(root_id.clone()),
                 )?;
             }
             BodyItemRef::ContentControl(_) => {
