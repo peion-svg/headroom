@@ -793,6 +793,14 @@ DOCX/PDF extractor 또는 recovery provider 교체가 Canonical Source consumer�
 
 구현은 다음 8단계로 확장한다. 각 단계는 앞 단계의 검증된 결과 위에 하나의 책임을 추가하며, 이후 단계 기능을 선행 구현하지 않는다.
 
+공통 유의사항:
+
+- 외부 parser/library의 동작을 설계 권위로 승격하지 않는다.
+- 구현 중 발견된 문제 때문에 임의로 다음 Stage 책임이나 WorkContract 범위를 끌어오지 않는다.
+- 기술적 실패를 내용 부재나 정상 Source로 바꾸지 않는다.
+- 성능·메모리·정확도 문제는 해당 adapter 또는 Stage에서 먼저 격리한다.
+- 구현 세부 변경이 Canonical Source, Stable Anchor, Source Binding 불변을 깨면 즉시 HOLD한다.
+
 ## Stage 1 — Canonical Source + Stable Anchor Foundation
 
 ```text
@@ -803,6 +811,14 @@ validated source object
 ```
 
 공통 Source identity, anchor, resolver의 최소 계약을 고정한다.
+
+### 구현 유의사항
+
+- 특정 DOCX/PDF library의 transient ID를 `source_node_id`나 anchor identity로 사용하지 않는다.
+- 미래 포맷까지 예상한 범용 framework를 먼저 만들지 않는다.
+- 동일 source가 재실행·재조회에서 다른 객체로 오인되지 않도록 identity 생성 규칙을 deterministic하게 유지한다.
+- anchor가 생성되었다는 사실만으로 충분하지 않다. 실제 원문으로 roundtrip resolve되어야 한다.
+- source 위치를 잃은 node를 정상 material source처럼 승격하지 않는다.
 
 ## Stage 2 — DOCX Deterministic Path
 
@@ -816,6 +832,15 @@ DOCX
 
 DOCX 구조를 deterministic하게 추출하고 Stage 1 결과에 연결한다.
 
+### 구현 유의사항
+
+- DOCX XML에 존재하는 구조를 의미적으로 재작성하거나 추측하지 않는다.
+- heading, list, table, merged cell, caption, footnote 관계가 라이브러리 wrapper에서 유실되는지 fixture로 확인한다.
+- library가 편의를 위해 평탄화한 결과를 원본 구조와 동일하다고 가정하지 않는다.
+- malformed/unsupported 입력을 빈 문서로 반환하지 않는다.
+- 특정 fixture만 통과시키기 위한 hard-coded 구조를 만들지 않는다.
+- DOCX 처리 문제 때문에 PDF/recovery 책임을 끌어오지 않는다.
+
 ## Stage 3 — Digital PDF Text/Position Path
 
 ```text
@@ -828,6 +853,15 @@ Digital PDF
 
 PDF 의미 구조를 과잉 추론하지 않고 text/position 기반 Source를 보존한다.
 
+### 구현 유의사항
+
+- PDF text extraction 성공을 reading order 성공으로 간주하지 않는다.
+- page, bounding box, span order 등 원위치 정보를 가능한 한 보존한다.
+- 다단 문서, header/footer, 표 내부 text가 평탄화될 수 있음을 전제로 한다.
+- extractor가 반환한 순서를 곧바로 논리 문서 순서로 확정하지 않는다.
+- 추출 text가 적거나 비어 있다고 실제 문서 내용이 없다고 판정하지 않는다.
+- 특정 PDF library의 결과 차이는 adapter 문제로 격리하고 Canonical 계약을 변경하는 이유로 사용하지 않는다.
+
 ## Stage 4 — Structure Integrity Validator
 
 ```text
@@ -839,6 +873,15 @@ extracted structure
 
 구조 이상을 조용히 정상 Source로 승격하지 않게 한다.
 
+### 구현 유의사항
+
+- 가장 위험한 실패는 오류를 내는 것이 아니라 틀린 구조를 `VALID`로 통과시키는 것이다.
+- validator는 의미적 정답을 판단하지 않고 관찰 가능한 구조 모순만 판정한다.
+- 불확실성을 억지로 PASS/FAIL 이진값으로 압축하지 말고 `AMBIGUOUS`와 `PARTIAL`을 사용한다.
+- 각 판정에는 reason code, evidence, affected region을 남긴다.
+- validator rule이 특정 문서군에 과적합되어 정상 문서를 대량 recovery로 보내지 않는지 확인한다.
+- false negative와 false positive를 모두 fixture로 관리한다.
+
 ## Stage 5 — Recovery Router
 
 ```text
@@ -849,6 +892,15 @@ integrity finding
 
 모델 호출 여부와 대상 영역을 결정한다. 전체 문서를 기본 recovery 단위로 사용하지 않는다.
 
+### 구현 유의사항
+
+- 모델이 사용 가능하다는 이유만으로 호출하지 않는다.
+- `VALID` 영역을 편의상 recovery에 포함하지 않는다.
+- affected region을 필요 이상으로 넓혀 전체 문서 recovery로 퇴행하지 않는다.
+- 비용 절감 때문에 필요한 recovery를 생략하거나, 품질 불안 때문에 모든 영역을 recovery하지 않는다.
+- provider 장애와 문서 구조 실패를 동일 실패로 취급하지 않는다.
+- recovery 불가 시 authority를 확대하지 말고 `RECOVERY_UNAVAILABLE` 또는 HOLD로 남긴다.
+
 ## Stage 6 — Targeted Recovery Adapter
 
 ```text
@@ -858,6 +910,15 @@ affected region
 ```
 
 교체 가능한 recovery provider를 통해 문제 영역만 복구한다.
+
+### 구현 유의사항
+
+- 모델 출력은 항상 `UNVERIFIED_RECOVERY`로 시작한다.
+- 원문에 없는 text, cell, 관계, 수치를 생성해도 그럴듯하다는 이유로 채택하지 않는다.
+- provider-specific schema와 ID를 상위 Canonical 계약으로 누출하지 않는다.
+- 요청에는 복구에 필요한 최소 원문 영역과 주변 deterministic context만 포함한다.
+- 모델 버전·응답 형식 변화가 parser 전체 identity를 흔들지 않도록 adapter에서 격리한다.
+- timeout, malformed response, partial response를 명시적으로 실패 상태로 반환한다.
 
 ## Stage 7 — Recovery Re-validation + Source Rebinding
 
@@ -871,6 +932,16 @@ UNVERIFIED_RECOVERY
 
 검증되지 않은 모델 출력을 Canonical Source로 승격하지 않는다.
 
+### 구현 유의사항
+
+- 이 단계는 Stage 4와 함께 가장 높은 위험 구간이다.
+- 복구 결과가 원본 region에 실제로 다시 결속되는지 확인하지 못하면 `VERIFIED`가 아니다.
+- 모델 출력과 deterministic extraction이 충돌하면 모델을 자동 우선하지 않는다.
+- quote/text match만 보고 구조 관계까지 검증됐다고 간주하지 않는다.
+- 부분적으로만 확인 가능한 결과는 `PARTIAL`로 남기고 정상 Source로 확장 해석하지 않는다.
+- rebinding 실패를 content absence로 바꾸지 않는다.
+- recovery 성공률을 높이기 위해 검증 기준을 완화하지 않는다.
+
 ## Stage 8 — Full Acceptance Closure
 
 ```text
@@ -881,6 +952,17 @@ DOCX / Digital PDF / failure fixture / recovery fixture
 ```
 
 전체 MVP 경로와 회귀 fixture를 검증하여 구현 완료 여부를 판정한다.
+
+### 구현 유의사항
+
+- happy path만으로 PASS하지 않는다.
+- malformed, ambiguous, partial, provider failure, rebinding failure fixture를 포함한다.
+- 정상 deterministic 문서에서 모델 호출 0인지 확인한다.
+- parser/library 버전 변경 후 동일 fixture의 material output drift를 확인한다.
+- 반복 처리·다문서 처리에서 상태 오염이나 결과 혼선이 없는지 확인한다.
+- 장시간 또는 반복 실행 시 메모리 증가가 지속되는지 측정하되, 원인 미확정 상태에서 leak로 단정하지 않는다.
+- 수용조건 미충족을 문서 해석이나 수동 승인으로 덮지 않는다.
+- Stage 8 PASS는 현재 MVP 구현 완료만 의미하며 제품 의미판단 또는 후속 SCI 검수의 정확성을 보증하지 않는다.
 
 ## WorkContract mapping
 
