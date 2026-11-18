@@ -1,0 +1,9 @@
+[package]
+name = "lightweight-source-parser"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.93"
+
+[dependencies]
+rdocx = { version = "=0.17.0", default-features = false }
+sha2 = "0.10"
