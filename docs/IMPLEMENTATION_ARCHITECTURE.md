@@ -981,6 +981,85 @@ DOCX fixture
 
 이 계약에서는 PDF, recovery, OCR 또는 이후 Stage를 구현하지 않는다.
 
+## 8단계 구현 체크리스트
+
+### Stage 1 — Canonical Source + Stable Anchor Foundation
+- [ ] Source identity가 외부 library transient ID와 분리되어 있는가
+- [ ] Canonical node 최소 필드가 실제 구현에 존재하는가
+- [ ] Stable Anchor가 원문 위치를 보존하는가
+- [ ] anchor → source roundtrip resolve가 가능한가
+- [ ] 위치를 잃은 material node가 정상 승격되지 않는가
+- [ ] 미래 포맷용 speculative abstraction을 추가하지 않았는가
+
+### Stage 2 — DOCX Deterministic Path
+- [ ] heading/paragraph/list/table 관계가 보존되는가
+- [ ] merged cell 또는 multi-level header 관계가 보존되는가
+- [ ] caption/footnote 중 fixture에 존재하는 구조가 보존되는가
+- [ ] document order가 유지되는가
+- [ ] malformed/unsupported DOCX가 명시적 실패를 반환하는가
+- [ ] 빈 추출 결과를 content absence로 처리하지 않는가
+- [ ] PDF/recovery 책임을 선행 구현하지 않았는가
+
+### Stage 3 — Digital PDF Text/Position Path
+- [ ] page/text span/bounding position이 보존되는가
+- [ ] extractor 순서를 논리 reading order로 자동 확정하지 않는가
+- [ ] multi-column/header/footer/table text 평탄화 위험을 기록하는가
+- [ ] text 부족 또는 공백을 content absence로 처리하지 않는가
+- [ ] PDF library 교체가 Canonical 계약 변경을 요구하지 않는가
+
+### Stage 4 — Structure Integrity Validator
+- [ ] VALID/AMBIGUOUS/PARTIAL/FAILED를 구분하는가
+- [ ] 각 판정에 reason code가 남는가
+- [ ] evidence와 affected region이 남는가
+- [ ] 의미판단이 아니라 관찰 가능한 구조 모순만 검사하는가
+- [ ] false negative fixture가 있는가
+- [ ] false positive fixture가 있는가
+- [ ] 틀린 구조가 조용히 VALID로 통과하지 않는가
+
+### Stage 5 — Recovery Router
+- [ ] VALID 영역에는 recovery를 호출하지 않는가
+- [ ] affected region만 recovery 대상으로 선택하는가
+- [ ] 전체 문서 recovery가 기본 경로가 아닌가
+- [ ] NO_RECOVERY / RECOVERY_REQUIRED / RECOVERY_UNAVAILABLE가 구분되는가
+- [ ] provider 장애와 document structure failure가 구분되는가
+- [ ] recovery 불가 시 authority를 임의 확대하지 않는가
+
+### Stage 6 — Targeted Recovery Adapter
+- [ ] 모든 모델 출력이 UNVERIFIED_RECOVERY로 시작하는가
+- [ ] 요청 범위가 필요한 최소 source region으로 제한되는가
+- [ ] provider-specific ID/schema가 Canonical 계층으로 누출되지 않는가
+- [ ] timeout/malformed/partial response가 명시적 상태로 반환되는가
+- [ ] 원문에 없는 text/value/relation을 정상 결과로 창작하지 않는가
+- [ ] provider/model 버전 변경이 adapter 내부에 격리되는가
+
+### Stage 7 — Recovery Re-validation + Source Rebinding
+- [ ] recovered content가 실제 원문 region에 다시 결속되는가
+- [ ] 구조 관계까지 재검증하는가
+- [ ] deterministic extraction과 충돌 시 모델을 자동 우선하지 않는가
+- [ ] VERIFIED/PARTIAL/REJECTED가 구분되는가
+- [ ] PARTIAL을 완전한 Canonical Source로 확장하지 않는가
+- [ ] rebinding 실패를 content absence로 바꾸지 않는가
+- [ ] 검증 기준을 recovery 성공률 때문에 완화하지 않는가
+
+### Stage 8 — Full Acceptance Closure
+- [ ] DOCX happy-path fixture가 통과하는가
+- [ ] Digital PDF fixture가 통과하는가
+- [ ] malformed/ambiguous/partial fixture가 포함되는가
+- [ ] provider failure/rebinding failure fixture가 포함되는가
+- [ ] 정상 deterministic 문서에서 model call = 0인가
+- [ ] 반복·다문서 처리에서 상태 오염이 없는가
+- [ ] parser/library 버전 변경 시 material output drift를 확인하는가
+- [ ] 반복 실행 메모리 변화를 측정하는가
+- [ ] 모든 acceptance criteria가 관찰 가능한 증거로 판정되는가
+
+### 공통 완료 체크
+- [ ] 현재 Stage의 Required Result가 실제 fixture에서 재현되는가
+- [ ] 해당 Stage의 실패 상태가 명시적으로 표현되는가
+- [ ] 현재 WorkContract Boundary 밖 구현이 없는가
+- [ ] Canonical Source / Stable Anchor / Source Binding 불변이 유지되는가
+- [ ] 테스트하지 않은 항목을 PASS로 기록하지 않는가
+- [ ] 다음 Stage로 넘어가기 전에 현재 Stage 상태를 STATUS.md에 반영하는가
+
 # 34. 현재 첫 최소 세로절단
 
 현재 활성 구현 결과는 `WC-PARSER-001`의 DOCX 경로다.
