@@ -789,22 +789,104 @@ Canonical material node에서 Stable Anchor를 통해 원문을 다시 확인할
 
 DOCX/PDF extractor 또는 recovery provider 교체가 Canonical Source consumer의 변경을 요구하지 않는다.
 
-# 33. 구현 순서
+# 33. 8단계 세로절단
+
+구현은 다음 8단계로 확장한다. 각 단계는 앞 단계의 검증된 결과 위에 하나의 책임을 추가하며, 이후 단계 기능을 선행 구현하지 않는다.
+
+## Stage 1 — Canonical Source + Stable Anchor Foundation
 
 ```text
-1. Canonical Source + Stable Anchor
-2. DOCX deterministic path
-3. PDF text/position path
-4. Structure Integrity Validator
-5. Recovery Router
-6. Recovery Adapter
-7. Recovery Re-validation
-8. Full acceptance fixtures
+validated source object
+→ Canonical Source
+→ Stable Anchor
+→ source resolve
 ```
 
-# 34. 첫 최소 세로절단
+공통 Source identity, anchor, resolver의 최소 계약을 고정한다.
 
-첫 구현 결과:
+## Stage 2 — DOCX Deterministic Path
+
+```text
+DOCX
+→ deterministic extraction
+→ Canonical Source
+→ Stable Anchor
+→ source resolve
+```
+
+DOCX 구조를 deterministic하게 추출하고 Stage 1 결과에 연결한다.
+
+## Stage 3 — Digital PDF Text/Position Path
+
+```text
+Digital PDF
+→ text + position primitives
+→ Canonical Source
+→ Stable Anchor
+→ source resolve
+```
+
+PDF 의미 구조를 과잉 추론하지 않고 text/position 기반 Source를 보존한다.
+
+## Stage 4 — Structure Integrity Validator
+
+```text
+extracted structure
+→ integrity rules
+→ VALID / AMBIGUOUS / PARTIAL / FAILED
+→ reason + evidence + affected region
+```
+
+구조 이상을 조용히 정상 Source로 승격하지 않게 한다.
+
+## Stage 5 — Recovery Router
+
+```text
+integrity finding
+→ recovery decision
+→ NO_RECOVERY / RECOVERY_REQUIRED / RECOVERY_UNAVAILABLE
+```
+
+모델 호출 여부와 대상 영역을 결정한다. 전체 문서를 기본 recovery 단위로 사용하지 않는다.
+
+## Stage 6 — Targeted Recovery Adapter
+
+```text
+affected region
+→ targeted recovery request
+→ UNVERIFIED_RECOVERY
+```
+
+교체 가능한 recovery provider를 통해 문제 영역만 복구한다.
+
+## Stage 7 — Recovery Re-validation + Source Rebinding
+
+```text
+UNVERIFIED_RECOVERY
+→ source rebinding
+→ structural + consistency validation
+→ VERIFIED / PARTIAL / REJECTED
+→ Canonical Source when verified
+```
+
+검증되지 않은 모델 출력을 Canonical Source로 승격하지 않는다.
+
+## Stage 8 — Full Acceptance Closure
+
+```text
+DOCX / Digital PDF / failure fixture / recovery fixture
+→ full pipeline
+→ acceptance criteria
+→ PASS / HOLD / FAIL
+```
+
+전체 MVP 경로와 회귀 fixture를 검증하여 구현 완료 여부를 판정한다.
+
+## WorkContract mapping
+
+8단계는 구현 책임 순서다. WorkContract는 실행 가능한 최소 결과를 만들기 위해 인접 단계를 묶을 수 있다.
+
+현재 `WC-PARSER-001`은 Stage 1과 Stage 2를 묶은 첫 실행 가능한 세로절단이다.
 
 ```text
 DOCX fixture
@@ -815,7 +897,13 @@ DOCX fixture
 → source resolve
 ```
 
-이 단계에서는 Gemini나 PDF까지 동시에 구현할 필요가 없다.
+이 계약에서는 PDF, recovery, OCR 또는 이후 Stage를 구현하지 않는다.
+
+# 34. 현재 첫 최소 세로절단
+
+현재 활성 구현 결과는 `WC-PARSER-001`의 DOCX 경로다.
+
+Stage 1의 공통 기반은 독립적인 speculative framework로 만들지 않고, DOCX 경로가 실제로 요구하는 최소 형태로 구현한다.
 
 # 35. 구현 금지
 
