@@ -4,8 +4,8 @@
 
 - Project: Lightweight Source Parser
 - Repository: `peion-svg/headroom`
-- Current phase: implementation preparation
-- Implementation status: NOT_STARTED
+- Current phase: WC-PARSER-001 implementation
+- Implementation status: IN_PROGRESS
 - Active WorkContract: `WC-PARSER-001`
 
 ## Canonical Project Documents
@@ -18,8 +18,8 @@
 
 | Stage | Slice | Status |
 | --- | --- | --- |
-| 1 | Canonical Source + Stable Anchor Foundation | NOT_STARTED |
-| 2 | DOCX Deterministic Path | NOT_STARTED |
+| 1 | Canonical Source + Stable Anchor Foundation | IN_PROGRESS |
+| 2 | DOCX Deterministic Path | IN_PROGRESS |
 | 3 | Digital PDF Text/Position Path | NOT_STARTED |
 | 4 | Structure Integrity Validator | NOT_STARTED |
 | 5 | Recovery Router | NOT_STARTED |
@@ -52,6 +52,12 @@ DOCX
 - Agent work rules created
 - First WorkContract created
 
+## Implementation Evidence
+
+- Initial implementation commit: `91dcf5f25d2b6e821f4a4dd3f904159728db7b55`
+- Rust core, DOCX fixture, acceptance tests, and CI workflow are present on `main`.
+- CI result is not yet verified; PASS is not declared.
+
 ## Not Yet Verified
 
 - Rust project build
@@ -63,6 +69,6 @@ DOCX
 
 ## Next Action
 
-Implement `WC-PARSER-001` only.
+Run and inspect the required `cargo fmt --check` and `cargo test` gates for `WC-PARSER-001`; repair only evidence-backed local failures.
 
 Do not start Stage 3 or later work before `WC-PARSER-001` reaches PASS or HOLD.
