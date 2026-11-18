@@ -324,7 +324,7 @@ fn append_table(
         document_revision_id,
         &format!("body/{body_index}/table"),
         NodeType::Table,
-        table_text(table)?,
+        String::new(),
         parent_id,
         SourceLocation::Table { body_index },
         None,
@@ -349,7 +349,7 @@ fn append_table(
             document_revision_id,
             &format!("body/{body_index}/table/row/{row_index}"),
             NodeType::Row,
-            row_text(table, row_index)?,
+            String::new(),
             Some(table_id.clone()),
             SourceLocation::TableRow {
                 body_index,
@@ -587,7 +587,9 @@ fn resolve_location(
     location: &SourceLocation,
 ) -> Result<String, ParserError> {
     match *location {
-        SourceLocation::Document => Ok(document.text()),
+        SourceLocation::Document => Err(ParserError::SourceUnresolved(
+            "document root is structural and has no direct text anchor".to_owned(),
+        )),
         SourceLocation::BodyParagraph { body_index } => {
             match document.body_items().nth(body_index) {
                 Some(BodyItemRef::Paragraph(paragraph)) => Ok(paragraph.text()),
@@ -596,14 +598,12 @@ fn resolve_location(
                 ))),
             }
         }
-        SourceLocation::Table { body_index } => {
-            let table = body_table(document, body_index)?;
-            table_text(&table)
-        }
-        SourceLocation::TableRow { body_index, row } => {
-            let table = body_table(document, body_index)?;
-            row_text(&table, row)
-        }
+        SourceLocation::Table { .. } => Err(ParserError::SourceUnresolved(
+            "table node is structural and has no direct text anchor".to_owned(),
+        )),
+        SourceLocation::TableRow { .. } => Err(ParserError::SourceUnresolved(
+            "table row is structural and has no direct text anchor".to_owned(),
+        )),
         SourceLocation::TableCell {
             body_index,
             row,
@@ -629,30 +629,6 @@ fn body_table(document: &Document, body_index: usize) -> Result<TableRef<'_>, Pa
             "body[{body_index}] is not the original table"
         ))),
     }
-}
-
-fn table_text(table: &TableRef<'_>) -> Result<String, ParserError> {
-    let mut rows = Vec::with_capacity(table.row_count());
-    for row in 0..table.row_count() {
-        rows.push(row_text(table, row)?);
-    }
-    Ok(rows.join("\n"))
-}
-
-fn row_text(table: &TableRef<'_>, row_index: usize) -> Result<String, ParserError> {
-    let row = table.row(row_index).ok_or_else(|| {
-        ParserError::SourceUnresolved(format!("table row {row_index} is missing"))
-    })?;
-    let mut cells = Vec::with_capacity(row.cell_count());
-    for column in 0..row.cell_count() {
-        let cell = row.cell(column).ok_or_else(|| {
-            ParserError::SourceUnresolved(format!(
-                "table row {row_index} cell {column} is missing"
-            ))
-        })?;
-        cells.push(cell.text());
-    }
-    Ok(cells.join(" | "))
 }
 
 fn looks_like_zip(bytes: &[u8]) -> bool {
