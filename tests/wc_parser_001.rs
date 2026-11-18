@@ -1,5 +1,5 @@
 use lightweight_source_parser::{
-    NodeType, ParserError, VerticalMerge, parse_docx,
+    NodeType, OffsetUnit, ParserError, SourceLocation, VerticalMerge, parse_docx,
 };
 use sha2::{Digest, Sha256};
 
@@ -70,6 +70,40 @@ fn wc_parser_001_preserves_structure_identity_and_roundtrip() {
     );
     assert_eq!(list_item.parent_id, heading.parent_id);
 
+    let duplicate_nodes: Vec<_> = parsed
+        .nodes
+        .iter()
+        .filter(|node| node.content == "중복 문장 Ω😀")
+        .collect();
+    assert_eq!(duplicate_nodes.len(), 2);
+    assert_ne!(duplicate_nodes[0].source_node_id, duplicate_nodes[1].source_node_id);
+    assert_ne!(duplicate_nodes[0].source_location, duplicate_nodes[1].source_location);
+
+    let duplicate_anchors: Vec<_> = parsed
+        .anchors
+        .iter()
+        .filter(|anchor| anchor.quote == "중복 문장 Ω😀")
+        .collect();
+    assert_eq!(duplicate_anchors.len(), 2);
+    assert_ne!(duplicate_anchors[0].anchor_id, duplicate_anchors[1].anchor_id);
+    for anchor in duplicate_anchors {
+        assert_eq!(anchor.offset_unit, OffsetUnit::Utf8Byte);
+        assert_eq!(anchor.local_start, 0);
+        assert_eq!(anchor.local_end, anchor.quote.len());
+        assert!(anchor.local_end > anchor.quote.chars().count());
+        assert_eq!(parsed.resolve(anchor).unwrap(), anchor.quote);
+    }
+
+    let empty_paragraph = parsed
+        .nodes
+        .iter()
+        .find(|node| node.node_type == NodeType::Paragraph && node.content.is_empty())
+        .expect("empty paragraph must be preserved structurally");
+    assert!(!parsed
+        .anchors
+        .iter()
+        .any(|anchor| anchor.source_node_id == empty_paragraph.source_node_id));
+
     let table = parsed
         .nodes
         .iter()
@@ -82,7 +116,7 @@ fn wc_parser_001_preserves_structure_identity_and_roundtrip() {
         .iter()
         .filter(|node| node.node_type == NodeType::Row)
         .collect();
-    assert_eq!(rows.len(), 2);
+    assert_eq!(rows.len(), 3);
     assert!(rows.iter().all(|row| row.parent_id.as_ref() == Some(&table.source_node_id)));
 
     let merged = parsed
@@ -93,6 +127,7 @@ fn wc_parser_001_preserves_structure_identity_and_roundtrip() {
     assert_eq!(merged.node_type, NodeType::Cell);
     assert_eq!(merged.grid_span, Some(2));
     assert_eq!(merged.vertical_merge, None);
+    assert_eq!(merged.logical_column, Some(0));
 
     let merged_anchor = parsed
         .anchors
@@ -101,13 +136,32 @@ fn wc_parser_001_preserves_structure_identity_and_roundtrip() {
         .expect("merged cell anchor");
     assert_eq!(merged_anchor.row, Some(0));
     assert_eq!(merged_anchor.column, Some(0));
+    assert_eq!(merged_anchor.logical_column, Some(0));
+
+    let offset_cell = parsed
+        .nodes
+        .iter()
+        .find(|node| node.content == "C")
+        .expect("gridBefore cell");
+    assert_eq!(offset_cell.logical_column, Some(1));
+    assert!(matches!(
+        offset_cell.source_location,
+        SourceLocation::TableCell { column: 0, .. }
+    ));
+    let offset_anchor = parsed
+        .anchors
+        .iter()
+        .find(|anchor| anchor.source_node_id == offset_cell.source_node_id)
+        .expect("gridBefore cell anchor");
+    assert_eq!(offset_anchor.column, Some(0));
+    assert_eq!(offset_anchor.logical_column, Some(1));
 
     let cells: Vec<_> = parsed
         .nodes
         .iter()
         .filter(|node| node.node_type == NodeType::Cell)
         .collect();
-    assert_eq!(cells.len(), 3);
+    assert_eq!(cells.len(), 4);
     assert!(cells.iter().all(|cell| {
         let parent = parsed
             .nodes
@@ -124,8 +178,22 @@ fn wc_parser_001_preserves_structure_identity_and_roundtrip() {
         .expect("caption node");
     assert_eq!(caption.node_type, NodeType::Caption);
 
+    assert!(parsed
+        .nodes
+        .iter()
+        .filter(|node| matches!(node.node_type, NodeType::Table | NodeType::Row))
+        .all(|node| node.content.is_empty()));
+    assert!(parsed.anchors.iter().all(|anchor| {
+        parsed
+            .nodes
+            .iter()
+            .find(|node| node.source_node_id == anchor.source_node_id)
+            .is_some_and(|node| !matches!(node.node_type, NodeType::Table | NodeType::Row))
+    }));
+
     assert!(!parsed.anchors.is_empty());
     for anchor in &parsed.anchors {
+        assert_eq!(anchor.offset_unit, OffsetUnit::Utf8Byte);
         assert_eq!(
             parsed.resolve(anchor).expect("anchor must resolve"),
             anchor.quote

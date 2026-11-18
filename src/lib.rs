@@ -37,6 +37,11 @@ pub enum VerticalMerge {
     Continue,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OffsetUnit {
+    Utf8Byte,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SourceLocation {
     Document,
@@ -67,6 +72,7 @@ pub struct CanonicalNode {
     pub source_location: SourceLocation,
     pub extraction_origin: ExtractionOrigin,
     pub extraction_status: ExtractionStatus,
+    pub logical_column: Option<usize>,
     pub grid_span: Option<u32>,
     pub vertical_merge: Option<VerticalMerge>,
 }
@@ -78,11 +84,13 @@ pub struct StableAnchor {
     pub source_node_id: String,
     pub local_start: usize,
     pub local_end: usize,
+    pub offset_unit: OffsetUnit,
     pub quote: String,
     pub quote_hash: String,
     pub source_location: SourceLocation,
     pub row: Option<usize>,
     pub column: Option<usize>,
+    pub logical_column: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -190,16 +198,13 @@ pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, ParserError> {
         SourceLocation::Document,
         None,
         None,
+        None,
     );
 
     for (body_index, item) in document.body_items().enumerate() {
         match item {
             BodyItemRef::Paragraph(paragraph) => {
                 let text = paragraph.text();
-                if text.is_empty() {
-                    continue;
-                }
-
                 let node_type = classify_paragraph(&document, &paragraph);
                 let parent_id = Some(root_id.clone());
                 let path = match node_type {
@@ -217,6 +222,7 @@ pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, ParserError> {
                     text,
                     parent_id,
                     SourceLocation::BodyParagraph { body_index },
+                    None,
                     None,
                     None,
                 );
@@ -326,6 +332,7 @@ fn append_table(
         SourceLocation::Table { body_index },
         None,
         None,
+        None,
     );
 
     for row_index in 0..table.row_count() {
@@ -354,7 +361,10 @@ fn append_table(
             },
             None,
             None,
+            None,
         );
+
+        let mut logical_column = row.grid_before().unwrap_or(0) as usize;
 
         for column_index in 0..row.cell_count() {
             let cell = row.cell(column_index).ok_or_else(|| {
@@ -369,6 +379,20 @@ fn append_table(
                 VMerge::Restart => VerticalMerge::Restart,
                 VMerge::Continue => VerticalMerge::Continue,
             });
+            let span = cell.grid_span().unwrap_or(1);
+            if span == 0 {
+                return Err(ParserError::StructureInvalid(format!(
+                    "table body[{body_index}] row {row_index} cell {column_index} has zero grid span"
+                )));
+            }
+            let cell_logical_column = logical_column;
+            logical_column = logical_column
+                .checked_add(span as usize)
+                .ok_or_else(|| {
+                    ParserError::StructureInvalid(format!(
+                        "table body[{body_index}] row {row_index} logical column overflow"
+                    ))
+                })?;
 
             push_node(
                 nodes,
@@ -384,9 +408,24 @@ fn append_table(
                     row: row_index,
                     column: column_index,
                 },
+                Some(cell_logical_column),
                 cell.grid_span(),
                 vertical_merge,
             );
+        }
+
+        let logical_end = logical_column
+            .checked_add(row.grid_after().unwrap_or(0) as usize)
+            .ok_or_else(|| {
+                ParserError::StructureInvalid(format!(
+                    "table body[{body_index}] row {row_index} trailing grid overflow"
+                ))
+            })?;
+        let grid_columns = table.column_count();
+        if grid_columns > 0 && logical_end != grid_columns {
+            return Err(ParserError::StructureInvalid(format!(
+                "table body[{body_index}] row {row_index} spans {logical_end} logical columns but table grid declares {grid_columns}"
+            )));
         }
     }
 
@@ -435,6 +474,7 @@ fn push_node(
     content: String,
     parent_id: Option<String>,
     source_location: SourceLocation,
+    logical_column: Option<usize>,
     grid_span: Option<u32>,
     vertical_merge: Option<VerticalMerge>,
 ) -> String {
@@ -453,6 +493,7 @@ fn push_node(
         source_location,
         extraction_origin: ExtractionOrigin::DocxDeterministic,
         extraction_status: ExtractionStatus::Valid,
+        logical_column,
         grid_span,
         vertical_merge,
     });
@@ -497,11 +538,13 @@ fn build_anchor(document_revision_id: &str, node: &CanonicalNode) -> StableAncho
         source_node_id: node.source_node_id.clone(),
         local_start,
         local_end,
+        offset_unit: OffsetUnit::Utf8Byte,
         quote: node.content.clone(),
         quote_hash: sha256_hex(node.content.as_bytes()),
-        source_location: node.source_location.clone(),
+        source_location: node.source_location,
         row,
         column,
+        logical_column: node.logical_column,
     }
 }
 

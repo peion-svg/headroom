@@ -125,6 +125,11 @@ source_location
 4. 추출 실패를 내용 부재로 변환하지 않는다.
 5. Canonical node에서 원문 Source를 다시 resolve할 수 있어야 한다.
 6. 이번 계약에서는 모델/API 호출이 없어야 한다.
+7. Stable Anchor의 local offset은 UTF-8 byte 단위로 고정한다.
+8. Table/Row의 synthetic structural text를 직접 원문 quote처럼 Anchor하지 않는다.
+9. DOCX body에 명시되지 않은 heading containment를 임의 생성하지 않는다.
+10. 표의 physical cell index와 logical grid column을 구분한다.
+11. text가 빈 paragraph도 구조 node로 보존하고 direct text Anchor는 만들지 않는다.
 
 ## Required Tests
 
@@ -148,6 +153,11 @@ source_location
 - anchor → source resolve roundtrip
 - quote/hash 일치
 - malformed/unsupported DOCX의 명시적 실패
+- 동일 Unicode quote가 반복돼도 서로 다른 source location/anchor identity 유지
+- UTF-8 byte offset roundtrip
+- empty paragraph 구조 보존 + text anchor 미생성
+- gridBefore/gridSpan을 고려한 physical cell index / logical column 분리
+- Table/Row synthetic text가 direct Anchor로 승격되지 않음
 - `cargo fmt --check`
 - `cargo test`
 
