@@ -5,7 +5,7 @@
 - Project: Lightweight Source Parser
 - Repository: `peion-svg/headroom`
 - Current phase: WC-PARSER-001 implementation
-- Implementation status: IMPLEMENTED_UNVERIFIED
+- Implementation status: HOLD
 - Active WorkContract: `WC-PARSER-001`
 
 ## Canonical Project Documents
@@ -55,10 +55,12 @@ DOCX
 ## Implementation Evidence
 
 - Initial implementation commit: `91dcf5f25d2b6e821f4a4dd3f904159728db7b55`
-- Follow-up fixes: `eb857572352d4920ed3252e2aa540d1abcd416d4`, `6bb77bd0bfefceca3fd3aad4c3ace8afcb9f5152`, `e71f96835db8a30009e8b2faeff2d2117b9d22af`, `1d8d030f56fb9ce02227e99eb1a03d9af694995b`
+- Follow-up fixes: `eb857572352d4920ed3252e2aa540d1abcd416d4`, `6bb77bd0bfefceca3fd3aad4c3ace8afcb9f5152`, `e71f96835db8a30009e8b2faeff2d2117b9d22af`, `1d8d030f56fb9ce02227e99eb1a03d9af694995b`, `1515d059cac4cfe7412105daa9c0d68f539ef775`, `3b89c79deed5eef10d747917fc9ffcb2c88d2ca9`, `cc9ca59149b6efc4941efc20e7d7d96df9353bf8`, `fa8ddac10a956eea29f1678ccdaad3045cec0fca`
 - Rust core, actual DOCX fixture, acceptance tests, and CI workflow are present on `main`.
 - Fixture contains heading, paragraph, direct-numbering list, merged table header, and caption.
 - Exact `rdocx 0.17.0` table/paragraph APIs used by the implementation were checked against the tagged source.
+- Static review additionally removed synthetic Table/Row text, removed inferred Heading containment, and bound source revision identity to the extractor profile.
+- Fixture blob was confirmed byte-for-byte against the local 2,212-byte DOCX fixture.
 - GitHub produced no Actions run for either push or a verification PR in the current fork repository.
 - `cargo fmt --check` and `cargo test` have therefore not been executed.
 - PASS is not declared.
@@ -72,11 +74,17 @@ DOCX
 - source resolve roundtrip
 - fixture-based acceptance tests
 
+## WorkContract Verdict
+
+- `WC-PARSER-001`: HOLD
+- Reason: required execution gates have not run.
+- This HOLD is caused by verification-environment availability, not by observed parser test failure.
+
 ## Verification Blocker
 
-The required Rust gates need an executable Rust environment. The current connected environment has no Rust toolchain, and this fork repository did not create a GitHub Actions run for push or pull-request events.
+The required Rust gates need an executable Rust environment. The current connected container has no Rust toolchain and cannot reach the network to install one. The current fork repository did not create a GitHub Actions run for push or pull-request events.
 
-This is a verification blocker, not evidence of implementation failure.
+The CI workflow now includes `workflow_dispatch` so it can be run manually once GitHub Actions is enabled.
 
 ## Next Action
 
