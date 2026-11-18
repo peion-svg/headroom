@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 
 const PARSER_SCHEMA_VERSION: &str = "source-parser-docx-v0.1";
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeType {
     Document,
     Heading { level: u8 },
@@ -540,14 +540,14 @@ fn validate_structure(nodes: &[CanonicalNode]) -> Result<(), ParserError> {
 
     let by_id: HashMap<_, _> = nodes
         .iter()
-        .map(|node| (node.source_node_id.as_str(), &node.node_type))
+        .map(|node| (node.source_node_id.as_str(), node.node_type))
         .collect();
 
     for node in nodes {
         match node.node_type {
             NodeType::Row => {
                 let parent = node.parent_id.as_deref().and_then(|id| by_id.get(id));
-                if !matches!(parent, Some(NodeType::Table)) {
+                if !parent.is_some_and(|kind| *kind == NodeType::Table) {
                     return Err(ParserError::StructureInvalid(format!(
                         "row {} is not parented by a table",
                         node.source_node_id
@@ -556,7 +556,7 @@ fn validate_structure(nodes: &[CanonicalNode]) -> Result<(), ParserError> {
             }
             NodeType::Cell => {
                 let parent = node.parent_id.as_deref().and_then(|id| by_id.get(id));
-                if !matches!(parent, Some(NodeType::Row)) {
+                if !parent.is_some_and(|kind| *kind == NodeType::Row) {
                     return Err(ParserError::StructureInvalid(format!(
                         "cell {} is not parented by a row",
                         node.source_node_id
@@ -644,10 +644,9 @@ fn row_text(table: &TableRef<'_>, row_index: usize) -> Result<String, ParserErro
 }
 
 fn looks_like_zip(bytes: &[u8]) -> bool {
-    matches!(
-        bytes.get(..4),
-        Some(b"PK\x03\x04") | Some(b"PK\x05\x06") | Some(b"PK\x07\x08")
-    )
+    bytes.starts_with(b"PK\x03\x04")
+        || bytes.starts_with(b"PK\x05\x06")
+        || bytes.starts_with(b"PK\x07\x08")
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
