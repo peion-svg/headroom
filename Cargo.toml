@@ -6,4 +6,4 @@ rust-version = "1.93"
 
 [dependencies]
 rdocx = { version = "=0.17.0", default-features = false }
-sha2 = "0.10"
+sha2 = "0.11"
