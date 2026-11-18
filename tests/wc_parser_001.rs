@@ -54,7 +54,7 @@ fn wc_parser_001_preserves_structure_identity_and_roundtrip() {
         .find(|node| node.content == "Deterministic paragraph.")
         .expect("paragraph node");
     assert_eq!(paragraph.node_type, NodeType::Paragraph);
-    assert_eq!(paragraph.parent_id.as_ref(), Some(&heading.source_node_id));
+    assert_eq!(paragraph.parent_id, heading.parent_id);
 
     let list_item = parsed
         .nodes
@@ -68,14 +68,14 @@ fn wc_parser_001_preserves_structure_identity_and_roundtrip() {
             ordered: Some(false),
         }
     );
-    assert_eq!(list_item.parent_id.as_ref(), Some(&heading.source_node_id));
+    assert_eq!(list_item.parent_id, heading.parent_id);
 
     let table = parsed
         .nodes
         .iter()
         .find(|node| node.node_type == NodeType::Table)
         .expect("table node");
-    assert_eq!(table.parent_id.as_ref(), Some(&heading.source_node_id));
+    assert_eq!(table.parent_id, heading.parent_id);
 
     let rows: Vec<_> = parsed
         .nodes
