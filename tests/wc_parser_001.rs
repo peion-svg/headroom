@@ -22,6 +22,21 @@ fn wc_parser_001_preserves_structure_identity_and_roundtrip() {
         .collect();
     assert_eq!(ids, reparsed_ids, "source identity must be deterministic");
 
+    let anchor_ids: Vec<_> = parsed
+        .anchors
+        .iter()
+        .map(|anchor| anchor.anchor_id.as_str())
+        .collect();
+    let reparsed_anchor_ids: Vec<_> = reparsed
+        .anchors
+        .iter()
+        .map(|anchor| anchor.anchor_id.as_str())
+        .collect();
+    assert_eq!(
+        anchor_ids, reparsed_anchor_ids,
+        "stable anchor identity must be deterministic"
+    );
+
     for (expected_order, node) in parsed.nodes.iter().enumerate() {
         assert_eq!(node.document_order, expected_order);
     }
@@ -78,6 +93,14 @@ fn wc_parser_001_preserves_structure_identity_and_roundtrip() {
     assert_eq!(merged.node_type, NodeType::Cell);
     assert_eq!(merged.grid_span, Some(2));
     assert_eq!(merged.vertical_merge, None);
+
+    let merged_anchor = parsed
+        .anchors
+        .iter()
+        .find(|anchor| anchor.source_node_id == merged.source_node_id)
+        .expect("merged cell anchor");
+    assert_eq!(merged_anchor.row, Some(0));
+    assert_eq!(merged_anchor.column, Some(0));
 
     let cells: Vec<_> = parsed
         .nodes
