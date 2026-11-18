@@ -37,7 +37,7 @@ Input
 → Source Resolve
 ```
 
-## Initial Scope
+## MVP Scope
 
 - DOCX deterministic extraction
 - Digital PDF text/position extraction
@@ -62,26 +62,3 @@ Input
 - Core language: Rust
 - 외부 DOCX/PDF extractor와 recovery provider는 교체 가능한 adapter로 취급한다.
 - 정상 deterministic path에서는 모델 호출을 하지 않는다.
-
-## Development Status
-
-현재 첫 세로절단:
-
-```text
-DOCX
-→ deterministic extraction
-→ Canonical Source
-→ Stable Anchor
-→ source resolve
-```
-
-## Validation
-
-기본 검증:
-
-```bash
-cargo fmt --check
-cargo test
-```
-
-구조 보존, anchor roundtrip, failure separation을 fixture 기반으로 검증한다.
