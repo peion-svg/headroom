@@ -55,7 +55,7 @@ DOCX
 ## Implementation Evidence
 
 - Initial implementation commit: `91dcf5f25d2b6e821f4a4dd3f904159728db7b55`
-- Follow-up fixes: `eb857572352d4920ed3252e2aa540d1abcd416d4`, `6bb77bd0bfefceca3fd3aad4c3ace8afcb9f5152`, `e71f96835db8a30009e8b2faeff2d2117b9d22af`, `1d8d030f56fb9ce02227e99eb1a03d9af694995b`, `1515d059cac4cfe7412105daa9c0d68f539ef775`, `3b89c79deed5eef10d747917fc9ffcb2c88d2ca9`, `cc9ca59149b6efc4941efc20e7d7d96df9353bf8`, `fa8ddac10a956eea29f1678ccdaad3045cec0fca`
+- Follow-up fixes: `eb857572352d4920ed3252e2aa540d1abcd416d4`, `6bb77bd0bfefceca3fd3aad4c3ace8afcb9f5152`, `e71f96835db8a30009e8b2faeff2d2117b9d22af`, `1d8d030f56fb9ce02227e99eb1a03d9af694995b`, `1515d059cac4cfe7412105daa9c0d68f539ef775`, `3b89c79deed5eef10d747917fc9ffcb2c88d2ca9`, `cc9ca59149b6efc4941efc20e7d7d96df9353bf8`, `fa8ddac10a956eea29f1678ccdaad3045cec0fca`, `b8e119745db273985961840806d291ef64df54d5`, `aeeed0ea22cef237d707f3aa3ff1756da4842428`, `7df361f59d337e37b607ba338700cf79bd80861d`
 - Rust core, actual DOCX fixture, acceptance tests, and CI workflow are present on `main`.
 - Fixture contains heading, paragraph, direct-numbering list, repeated Unicode paragraphs, an empty paragraph, merged table header, gridBefore row, and caption.
 - Exact `rdocx 0.17.0` table/paragraph APIs used by the implementation were checked against the tagged source.
@@ -65,6 +65,7 @@ DOCX
 - A separate valid DOCX unsupported fixture was added to verify explicit structural refusal instead of silent flattening.
 - GitHub produced no Actions run for either push or a verification PR in the current fork repository.
 - `cargo fmt --check` and `cargo test` have therefore not been executed.
+- List classification now treats direct `numId=0` as numbering suppression and refuses unresolved list-like style inheritance rather than guessing.
 - PASS is not declared.
 
 ## Not Yet Verified
